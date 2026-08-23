@@ -1,3 +1,4 @@
+'use client';
 import { site } from '@/data/site';
 
 export function Footer(){
