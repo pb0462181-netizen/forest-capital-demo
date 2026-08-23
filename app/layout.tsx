@@ -5,7 +5,6 @@ import { site } from '@/data/site';
 import { ConsentAnalytics } from '@/components/ConsentAnalytics';
 import { AnalyticsBridge } from '@/components/AnalyticsBridge';
 import { MotionControls } from '@/components/MotionControls';
-import { DemoBadge } from '@/components/DemoBadge';
 
 const manrope = Manrope({ subsets:['cyrillic','latin'], variable:'--font-manrope', display:'swap' });
 const prata = Prata({ subsets:['cyrillic','latin'], weight:'400', variable:'--font-prata', display:'swap' });
