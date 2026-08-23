@@ -7,7 +7,6 @@ import { heroSteps } from '@/data/site';
 import { sceneConfig } from '@/data/scene';
 import { trackEvent } from './ConsentAnalytics';
 import { useSceneQuality } from './3d/useSceneQuality';
-import { sceneConfig } from '@/data/scene';
 
 function canUseWebGL(){
   try{
