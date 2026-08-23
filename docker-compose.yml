@@ -1,0 +1,20 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: forest
+      POSTGRES_USER: forest
+      POSTGRES_PASSWORD: change-me
+    volumes:
+      - forest_pg:/var/lib/postgresql/data
+volumes:
+  forest_pg:

@@ -1,0 +1,6 @@
+PASS  Verified FOREST 170 data file
+PASS  Verified FOREST 126 official URL
+PASS  No old invented project URLs
+PASS  CMS placeholders explicit
+PASS  Technical specs project-bound
+PASS  Content audit exists

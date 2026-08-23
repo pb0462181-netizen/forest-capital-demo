@@ -1,0 +1,6 @@
+PASS  Demo mode explicit
+PASS  Demo badge installed
+PASS  No exact-copy claim
+PASS  Panoramic demo glazing
+PASS  Timber facade accents
+PASS  Evening lighting

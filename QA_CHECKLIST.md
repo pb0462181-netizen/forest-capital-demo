@@ -1,0 +1,25 @@
+# Acceptance / QA checklist
+
+- [ ] Header transparent at top and compact/blurred after scroll
+- [ ] Full-screen mobile menu works with keyboard
+- [ ] Hero text appears before 3D
+- [ ] 3D scene doesn't contain critical text
+- [ ] Camera moves around architecture; model does not spin like a product
+- [ ] 3D milestones track scroll
+- [ ] Reduced-motion mode works
+- [ ] WebGL-disabled fallback works
+- [ ] No horizontal scroll at 360, 390, 430 px
+- [ ] Touch targets are large enough
+- [ ] Form validates and shows success/failure clearly
+- [ ] Bitrix secret absent from client bundle
+- [ ] UTM/source/page/project sent through server route
+- [ ] Analytics does not load before consent
+- [ ] Keyboard focus visible
+- [ ] Real media has alt text
+- [ ] Current legal documents installed
+- [ ] Sitemap/robots correct for production domain
+- [ ] Lighthouse desktop >= 80 target
+- [ ] Lighthouse mobile >= 70 target
+- [ ] Accessibility >= 90 target
+- [ ] SEO >= 90 target
+- [ ] No console errors

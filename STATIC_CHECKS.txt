@@ -1,0 +1,8 @@
+PASS  Header use client first
+PASS  Single MobileMenu in Header
+PASS  No legacy burger state
+PASS  Hero custom motion event
+PASS  Hero WebGL fallback
+PASS  3D milestone analytics
+PASS  Bitrix webhook server-only
+PASS  Env example no secret value

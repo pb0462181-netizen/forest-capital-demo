@@ -1,0 +1,35 @@
+{
+  "status": "waiting_for_client_assets",
+  "required": {
+    "logo_svg": {
+      "path": "public/brand/forest-logo.svg",
+      "received": false
+    },
+    "forest_170_desktop_glb": {
+      "path": "public/models/forest-170.glb",
+      "received": false,
+      "target_mb": 8
+    },
+    "forest_170_mobile_glb": {
+      "path": "public/models/forest-170-mobile.glb",
+      "received": false,
+      "target_mb": 4
+    },
+    "exterior_media": {
+      "path": "public/media/exterior/",
+      "received": false
+    },
+    "interior_media": {
+      "path": "public/media/interior/",
+      "received": false
+    },
+    "construction_media": {
+      "path": "public/media/construction/",
+      "received": false
+    },
+    "legal_documents": {
+      "path": "content/legal/",
+      "received": false
+    }
+  }
+}

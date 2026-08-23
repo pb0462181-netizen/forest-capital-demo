@@ -1,0 +1,8 @@
+PASS  Scene has desktop GLB path
+PASS  Scene has mobile GLB path
+PASS  Placeholder remains explicit
+PASS  Real model component wired
+PASS  Quality hook wired
+PASS  Hero passes quality to scene
+PASS  Asset manifest exists
+PASS  Model replacement guide exists
