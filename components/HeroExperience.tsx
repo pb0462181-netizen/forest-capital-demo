@@ -1,124 +1,242 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { heroSteps } from '@/data/site';
+import { Canvas } from '@react-three/fiber';
+import { Suspense, useEffect, useRef, useState } from 'react';
+
+import { HouseScene } from './3d/HouseScene';
+import { useSceneQuality } from './3d/useSceneQuality';
 import { trackEvent } from './ConsentAnalytics';
 
-const benefits = [
-  {
-    number: '01',
-    title: 'Индивидуальная архитектура',
-    text: 'Проект под ваш участок и образ жизни',
-  },
-  {
-    number: '02',
-    title: 'Полный цикл строительства',
-    text: 'От идеи до готового дома',
-  },
-  {
-    number: '03',
-    title: 'Фиксированная стоимость',
-    text: 'Прозрачный договор и сроки',
-  },
-  {
-    number: '04',
-    title: 'Контроль качества',
-    text: 'На каждом этапе строительства',
-  },
-];
+import { heroSteps } from '@/data/site';
+import { sceneConfig } from '@/data/scene';
+
+function canUseWebGL() {
+  try {
+    const canvas = document.createElement('canvas');
+
+    return !!(
+      window.WebGLRenderingContext &&
+      (
+        canvas.getContext('webgl2') ||
+        canvas.getContext('webgl')
+      )
+    );
+  } catch {
+    return false;
+  }
+}
 
 export function HeroExperience() {
   const sectionRef = useRef<HTMLElement>(null);
   const milestones = useRef(new Set<number>());
 
   const [progress, setProgress] = useState(0);
+  const [webgl, setWebgl] = useState(true);
+  const [reduced, setReduced] = useState(false);
+
+  const quality = useSceneQuality();
 
   useEffect(() => {
+    const motion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    );
+
+    const applyMotion = () => {
+      const saved = localStorage.getItem(
+        'forest_reduce_motion'
+      );
+
+      setReduced(
+        saved === null
+          ? motion.matches
+          : saved === '1'
+      );
+    };
+
+    const onMotionChange = (event: Event) => {
+      const custom =
+        event as CustomEvent<{
+          reduced: boolean;
+        }>;
+
+      if (custom.detail) {
+        setReduced(custom.detail.reduced);
+      }
+    };
+
     const onScroll = () => {
       const section = sectionRef.current;
 
       if (!section) return;
 
-      const rect = section.getBoundingClientRect();
+      const rect =
+        section.getBoundingClientRect();
 
       const travel = Math.max(
         1,
-        section.offsetHeight - window.innerHeight
+        section.offsetHeight -
+          window.innerHeight
       );
 
       const value = Math.min(
         1,
-        Math.max(0, -rect.top / travel)
+        Math.max(
+          0,
+          -rect.top / travel
+        )
       );
 
       setProgress(value);
 
-      [25, 50, 75, 100].forEach((mark) => {
-        if (
-          value * 100 >= mark &&
-          !milestones.current.has(mark)
-        ) {
-          milestones.current.add(mark);
-          trackEvent(`hero_${mark}`);
+      [25, 50, 75, 100].forEach(
+        (mark) => {
+          if (
+            value * 100 >= mark &&
+            !milestones.current.has(mark)
+          ) {
+            milestones.current.add(mark);
+
+            trackEvent(
+              `hero_3d_${mark}`
+            );
+          }
         }
-      });
+      );
     };
 
+    setWebgl(canUseWebGL());
+
+    applyMotion();
     onScroll();
 
-    window.addEventListener('scroll', onScroll, {
-      passive: true,
-    });
+    motion.addEventListener(
+      'change',
+      applyMotion
+    );
+
+    window.addEventListener(
+      'forest-motion-change',
+      onMotionChange
+    );
+
+    window.addEventListener(
+      'scroll',
+      onScroll,
+      { passive: true }
+    );
 
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      motion.removeEventListener(
+        'change',
+        applyMotion
+      );
+
+      window.removeEventListener(
+        'forest-motion-change',
+        onMotionChange
+      );
+
+      window.removeEventListener(
+        'scroll',
+        onScroll
+      );
     };
   }, []);
 
   const stepIndex = Math.min(
     heroSteps.length - 1,
     Math.floor(
-      Math.min(progress, 0.9999) *
-        heroSteps.length
+      Math.min(
+        progress,
+        0.9999
+      ) * heroSteps.length
     )
   );
 
-  const step = heroSteps[stepIndex];
+  const step =
+    heroSteps[stepIndex];
 
-  const introVisible = progress < 0.12;
+  const introVisible =
+    progress < 0.11;
 
-  const zoom = 1.02 + progress * 0.05;
-  const moveX = progress * -1.8;
-  const moveY = progress * -0.8;
+  const sceneProgress = reduced
+    ? Math.min(progress, 0.14)
+    : progress;
 
   return (
     <section
       ref={sectionRef}
       id="top"
-      className="heroExperience"
+      className="experience"
     >
       <div className="sticky">
-        <div className="visual">
+
+        {/* Красивый постер остаётся под 3D */}
+        <div className="poster" />
+
+        {/* Настоящая WebGL / 3D сцена */}
+        {webgl && (
           <div
-            className="photo"
-            style={{
-              transform: `
-                scale(${zoom})
-                translate3d(${moveX}%, ${moveY}%, 0)
-              `,
-            }}
-          />
-        </div>
+            className="canvas"
+            onPointerDown={() =>
+              trackEvent(
+                'hero_3d_interaction'
+              )
+            }
+          >
+            <Canvas
+              dpr={
+                reduced
+                  ? 1
+                  : sceneConfig
+                      .quality[quality]
+                      .dpr
+              }
+              shadows={
+                !reduced &&
+                sceneConfig
+                  .quality[quality]
+                  .shadows
+              }
+              gl={{
+                antialias:
+                  quality !== 'low',
+                alpha: true,
+                powerPreference:
+                  'high-performance',
+              }}
+              camera={{
+                fov: 42,
+                near: 0.1,
+                far: 150,
+              }}
+            >
+              <Suspense fallback={null}>
+                <HouseScene
+                  progress={
+                    sceneProgress
+                  }
+                  reduced={reduced}
+                  quality={quality}
+                />
+              </Suspense>
+            </Canvas>
+          </div>
+        )}
 
-        <div className="overlay" />
+        <div className="shade" />
 
+        {/* Первый кадр */}
         <div
           className={`intro ${
-            introVisible ? 'visible' : ''
+            introVisible
+              ? 'visible'
+              : ''
           }`}
         >
           <p className="eyebrow">
-            FOREST CAPITAL · ЕКАТЕРИНБУРГ
+            FOREST CAPITAL ·
+            ЕКАТЕРИНБУРГ
           </p>
 
           <h1>
@@ -126,13 +244,16 @@ export function HeroExperience() {
             <br />
             дома
             <br />
-            <span>бизнес-класса</span>
+            <span>
+              бизнес-класса
+            </span>
           </h1>
 
           <p className="lead">
-            Архитектура, строительство,
-            инженерия и интерьер — в одном
-            проекте.
+            Архитектура,
+            строительство,
+            инженерия и интерьер —
+            в одном проекте.
           </p>
 
           <div className="actions">
@@ -140,7 +261,9 @@ export function HeroExperience() {
               href="#contact"
               className="primary"
               onClick={() =>
-                trackEvent('hero_contact')
+                trackEvent(
+                  'hero_contact'
+                )
               }
             >
               Обсудить будущий дом
@@ -150,100 +273,88 @@ export function HeroExperience() {
               href="#projects"
               className="secondary"
             >
-              <i aria-hidden="true">↗</i>
               Смотреть проекты
             </a>
           </div>
         </div>
 
+        {/* Этапы 01–06 */}
         <div
           className={`story ${
-            !introVisible ? 'visible' : ''
+            !introVisible
+              ? 'visible'
+              : ''
           }`}
         >
-          <div className="storyMeta">
+          <div className="storyTop">
             <span>
-              {String(stepIndex + 1).padStart(
-                2,
-                '0'
-              )}
+              {String(
+                stepIndex + 1
+              ).padStart(2, '0')}
             </span>
 
-            <small>{step.eyebrow}</small>
+            <small>
+              {step.eyebrow}
+            </small>
           </div>
 
-          <h2>{step.title}</h2>
+          <h2>
+            {step.title}
+          </h2>
 
-          <p>{step.body}</p>
+          <p>
+            {step.body}
+          </p>
         </div>
 
+        {/* 01 / 06 */}
         <div className="counter">
           <b>
-            {String(stepIndex + 1).padStart(
-              2,
-              '0'
-            )}
+            {String(
+              stepIndex + 1
+            ).padStart(2, '0')}
           </b>
 
           <span>/</span>
 
           <small>
-            {String(heroSteps.length).padStart(
-              2,
-              '0'
-            )}
+            {String(
+              heroSteps.length
+            ).padStart(2, '0')}
           </small>
         </div>
 
-        <div
-          className={`benefits ${
-            introVisible ? 'visible' : ''
-          }`}
-        >
-          {benefits.map((item) => (
-            <div
-              className="benefit"
-              key={item.number}
-            >
-              <div className="benefitIcon">
-                {item.number}
-              </div>
-
-              <div>
-                <strong>{item.title}</strong>
-                <span>{item.text}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="scrollHint">
-          <span className="arrow">↓</span>
+        {/* Индикатор прокрутки */}
+        <div className="scroll">
+          <span className="arrow">
+            ↓
+          </span>
 
           <div>
-            <i
-              style={{
-                transform: `scaleX(${Math.max(
-                  progress,
-                  0.12
-                )})`,
-              }}
-            />
+            <div className="track">
+              <i
+                style={{
+                  transform:
+                    `scaleX(${progress})`,
+                }}
+              />
+            </div>
 
             <small>
-              Листайте, чтобы увидеть,
+              Листайте, чтобы
+              увидеть,
               <br />
               как создаётся дом
             </small>
           </div>
         </div>
+
       </div>
 
       <style jsx>{`
-        .heroExperience {
-          position: relative;
-          height: 430vh;
-          background: #0b100d;
+        .experience {
+          height: 450vh;
+          background: #0a0f0c;
         }
 
         .sticky {
@@ -252,52 +363,87 @@ export function HeroExperience() {
           height: 100svh;
           min-height: 650px;
           overflow: hidden;
-          background: #0d120f;
-          color: #f4f0e7;
+          background: #111310;
+          color: #f2f0ea;
         }
 
-        .visual {
+        .poster,
+        .canvas,
+        .shade {
           position: absolute;
           inset: 0;
-          overflow: hidden;
-          background: #132019;
         }
 
-        .photo {
-          position: absolute;
-          inset: -3%;
-          will-change: transform;
-
-          background-image:
-          url('/models/forest-hero-house.webp');
-
-          background-repeat: no-repeat;
-          background-size: cover;
-          background-position: center center;
-
-          transition: transform 0.08s linear;
+        .poster {
+          z-index: 0;
+          background:
+            linear-gradient(
+              90deg,
+              rgba(
+                7,
+                11,
+                8,
+                0.26
+              ),
+              transparent
+            ),
+            url(
+              '/models/forest-hero-house.webp'
+            )
+            center center /
+            cover no-repeat;
         }
 
-        .overlay {
-          position: absolute;
-          inset: 0;
+        .canvas {
+          z-index: 1;
+          touch-action: pan-y;
+        }
+
+        .shade {
+          z-index: 2;
           pointer-events: none;
 
           background:
             linear-gradient(
               90deg,
-              rgba(5, 9, 6, 0.96) 0%,
-              rgba(5, 9, 6, 0.84) 22%,
-              rgba(5, 9, 6, 0.46) 43%,
-              rgba(5, 9, 6, 0.08) 68%,
-              rgba(5, 9, 6, 0.02) 100%
+              rgba(
+                7,
+                11,
+                8,
+                0.94
+              )
+              0%,
+              rgba(
+                7,
+                11,
+                8,
+                0.72
+              )
+              28%,
+              rgba(
+                7,
+                11,
+                8,
+                0.20
+              )
+              56%,
+              rgba(
+                7,
+                11,
+                8,
+                0.02
+              )
+              80%
             ),
             linear-gradient(
-              180deg,
-              rgba(5, 8, 6, 0.2) 0%,
-              transparent 27%,
-              transparent 65%,
-              rgba(5, 8, 6, 0.74) 100%
+              0deg,
+              rgba(
+                7,
+                11,
+                8,
+                0.56
+              ),
+              transparent 46%
             );
         }
 
@@ -308,72 +454,90 @@ export function HeroExperience() {
           left: 5vw;
           top: 50%;
 
-          width: min(650px, 42vw);
+          width:
+            min(
+              620px,
+              43vw
+            );
+
+          opacity: 0;
 
           transform:
             translateY(-48%)
-            translateX(-20px);
-
-          opacity: 0;
-          pointer-events: none;
+            translateX(-22px);
 
           transition:
-            opacity 0.55s ease,
-            transform 0.65s ease;
+            opacity
+            0.5s ease,
+            transform
+            0.55s ease;
+
+          pointer-events: none;
         }
 
         .intro.visible {
           opacity: 1;
-          transform: translateY(-48%);
+
+          transform:
+            translateY(-48%);
+
           pointer-events: auto;
         }
 
         .eyebrow {
-          margin: 0 0 16px;
+          margin:
+            0 0 16px;
 
-          color: #c6a665;
+          color: #c4a364;
 
           font-size: 10px;
           font-weight: 500;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
+
+          letter-spacing:
+            0.18em;
+
+          text-transform:
+            uppercase;
         }
 
         h1 {
           margin: 0;
 
-          max-width: 620px;
+          font-family:
+            var(--font-prata);
 
-          font-family: var(--font-prata);
-
-          font-size: clamp(
-            60px,
-            6vw,
-            108px
-          );
+          font-size:
+            clamp(
+              58px,
+              6vw,
+              106px
+            );
 
           font-weight: 400;
-          line-height: 0.9;
-          letter-spacing: -0.045em;
 
-          color: #f4f0e7;
+          line-height: 0.9;
+
+          letter-spacing:
+            -0.045em;
         }
 
         h1 span {
-          color: #e8e0d3;
+          color: #ddd5c8;
         }
 
         .lead {
           max-width: 470px;
 
-          margin: 26px 0 0;
+          margin:
+            25px 0 0;
 
-          color: rgba(
-            244,
-            240,
-            231,
-            0.78
-          );
+          color:
+            rgba(
+              242,
+              240,
+              234,
+              0.8
+            );
 
           font-size: 16px;
           line-height: 1.55;
@@ -381,103 +545,78 @@ export function HeroExperience() {
 
         .actions {
           display: flex;
-          align-items: center;
-          gap: 12px;
 
-          margin-top: 30px;
+          flex-wrap: wrap;
+
+          gap: 10px;
+
+          margin-top: 28px;
         }
 
         .actions a {
-          min-height: 52px;
+          min-height: 50px;
 
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
+          display:
+            inline-flex;
 
-          box-sizing: border-box;
+          align-items:
+            center;
 
-          text-decoration: none;
+          justify-content:
+            center;
+
+          padding:
+            0 20px;
+
+          text-decoration:
+            none;
 
           font-size: 12px;
 
           transition:
-            transform 0.2s ease,
-            border-color 0.2s ease,
-            background 0.2s ease;
-        }
-
-        .actions a:hover {
-          transform: translateY(-2px);
+            0.2s ease;
         }
 
         .primary {
-          padding: 0 22px;
+          background:
+            #caa45f;
 
-          background: #d7b36c;
-          color: #10130f;
+          border:
+            1px solid
+            #caa45f;
 
-          border: 1px solid #d7b36c;
+          color:
+            #111310;
         }
 
         .secondary {
-          gap: 11px;
-          padding: 0 20px;
-
-          color: #f4f0e7;
-
           border:
             1px solid
-            rgba(215, 179, 108, 0.55);
+            rgba(
+              202,
+              164,
+              95,
+              0.55
+            );
 
           background:
-            rgba(10, 15, 11, 0.28);
+            rgba(
+              17,
+              19,
+              16,
+              0.28
+            );
 
-          backdrop-filter: blur(12px);
+          color:
+            #f2f0ea;
+
+          backdrop-filter:
+            blur(14px);
         }
 
-        .secondary i {
-          width: 25px;
-          height: 25px;
-
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-
-          border:
-            1px solid
-            rgba(215, 179, 108, 0.7);
-
-          border-radius: 50%;
-
-          color: #d7b36c;
-
-          font-style: normal;
-          font-size: 10px;
-        }
-
-        .counter {
-          position: absolute;
-          z-index: 5;
-
-          top: 105px;
-          right: 5vw;
-
-          display: flex;
-          align-items: baseline;
-          gap: 5px;
-        }
-
-        .counter b {
-          font-family: var(--font-prata);
-
-          font-size: 26px;
-          font-weight: 400;
-        }
-
-        .counter span,
-        .counter small {
-          color: #85857e;
-          font-size: 10px;
+        .actions a:hover {
+          transform:
+            translateY(-2px);
         }
 
         .story {
@@ -485,108 +624,36 @@ export function HeroExperience() {
           z-index: 5;
 
           left: 5vw;
-          bottom: 20vh;
+          bottom: 14vh;
 
-          width: min(470px, 38vw);
+          width:
+            min(
+              470px,
+              38vw
+            );
 
-          padding: 26px 28px;
+          padding:
+            25px 27px;
 
           border:
             1px solid
-            rgba(215, 179, 108, 0.24);
+            rgba(
+              202,
+              164,
+              95,
+              0.28
+            );
 
           background:
-            rgba(8, 13, 9, 0.74);
+            rgba(
+              8,
+              13,
+              9,
+              0.72
+            );
 
-          backdrop-filter: blur(18px);
-
-          opacity: 0;
-
-          transform:
-            translateY(24px);
-
-          pointer-events: none;
-
-          transition:
-            opacity 0.5s ease,
-            transform 0.55s ease;
-        }
-
-        .story.visible {
-          opacity: 1;
-          transform: none;
-        }
-
-        .storyMeta {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-
-          margin-bottom: 11px;
-        }
-
-        .storyMeta span {
-          color: #d7b36c;
-          font-size: 11px;
-        }
-
-        .storyMeta small {
-          color: #b99c65;
-
-          font-size: 9px;
-          letter-spacing: 0.17em;
-          text-transform: uppercase;
-        }
-
-        .story h2 {
-          margin: 0;
-
-          font-family: var(--font-prata);
-
-          font-size: clamp(
-            30px,
-            3vw,
-            48px
-          );
-
-          font-weight: 400;
-          line-height: 1.04;
-        }
-
-        .story > p {
-          margin: 15px 0 0;
-
-          color: #bdb9af;
-
-          font-size: 13px;
-          line-height: 1.6;
-        }
-
-        .benefits {
-          position: absolute;
-          z-index: 6;
-
-          left: 0;
-          right: 0;
-          bottom: 0;
-
-          min-height: 124px;
-
-          display: grid;
-
-          grid-template-columns:
-            repeat(4, 1fr);
-
-          padding: 0 5vw;
-
-          background:
-            rgba(6, 10, 7, 0.88);
-
-          backdrop-filter: blur(18px);
-
-          border-top:
-            1px solid
-            rgba(255, 255, 255, 0.07);
+          backdrop-filter:
+            blur(18px);
 
           opacity: 0;
 
@@ -594,175 +661,244 @@ export function HeroExperience() {
             translateY(20px);
 
           transition:
-            opacity 0.45s ease,
-            transform 0.55s ease;
+            opacity
+            0.45s ease,
+            transform
+            0.45s ease;
         }
 
-        .benefits.visible {
+        .story.visible {
           opacity: 1;
           transform: none;
         }
 
-        .benefit {
-          position: relative;
+        .storyTop {
+          display: flex;
+
+          align-items:
+            center;
+
+          gap: 15px;
+
+          margin-bottom:
+            10px;
+        }
+
+        .storyTop span {
+          color:
+            #caa45f;
+
+          font-size:
+            11px;
+        }
+
+        .storyTop small {
+          color:
+            #caa45f;
+
+          font-size:
+            9px;
+
+          letter-spacing:
+            0.14em;
+
+          text-transform:
+            uppercase;
+        }
+
+        .story h2 {
+          margin: 0;
+
+          font-family:
+            var(--font-prata);
+
+          font-size:
+            clamp(
+              30px,
+              3vw,
+              48px
+            );
+
+          font-weight:
+            400;
+
+          line-height:
+            1.05;
+        }
+
+        .story p {
+          margin:
+            14px 0 0;
+
+          color:
+            #bdb8ae;
+
+          font-size:
+            13px;
+
+          line-height:
+            1.55;
+        }
+
+        .counter {
+          position:
+            absolute;
+
+          z-index: 5;
+
+          top: 106px;
+          right: 5vw;
 
           display: flex;
-          align-items: center;
-          gap: 16px;
 
-          padding: 22px 26px;
+          align-items:
+            baseline;
+
+          gap: 5px;
         }
 
-        .benefit:not(:last-child) {
-          border-right:
-            1px solid
-            rgba(255, 255, 255, 0.09);
+        .counter b {
+          font-family:
+            var(--font-prata);
+
+          font-size:
+            25px;
+
+          font-weight:
+            400;
         }
 
-        .benefitIcon {
-          flex: 0 0 auto;
+        .counter span,
+        .counter small {
+          color:
+            #85817a;
 
-          width: 38px;
-          height: 38px;
-
-          display: flex;
-          align-items: center;
-          justify-content: center;
-
-          border:
-            1px solid
-            rgba(215, 179, 108, 0.55);
-
-          color: #d7b36c;
-
-          font-family: var(--font-prata);
-          font-size: 14px;
+          font-size:
+            10px;
         }
 
-        .benefit strong {
-          display: block;
+        .scroll {
+          position:
+            absolute;
 
-          max-width: 180px;
-
-          font-size: 12px;
-          font-weight: 500;
-          line-height: 1.35;
-        }
-
-        .benefit span {
-          display: block;
-
-          margin-top: 5px;
-
-          color: #85857e;
-
-          font-size: 9px;
-          line-height: 1.4;
-        }
-
-        .scrollHint {
-          position: absolute;
-          z-index: 7;
+          z-index: 5;
 
           left: 5vw;
-          bottom: 145px;
+          bottom: 28px;
 
           display: flex;
-          align-items: center;
-          gap: 16px;
+
+          align-items:
+            center;
+
+          gap: 13px;
         }
 
         .arrow {
-          color: #d7b36c;
+          color:
+            #caa45f;
 
-          font-size: 24px;
-          line-height: 1;
+          font-size:
+            22px;
         }
 
-        .scrollHint > div {
+        .scroll > div {
           display: flex;
-          align-items: center;
-          gap: 12px;
+
+          align-items:
+            center;
+
+          gap: 10px;
         }
 
-        .scrollHint i {
+        .track {
           width: 54px;
           height: 1px;
 
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.18
+            );
+
+          overflow: hidden;
+        }
+
+        .track i {
           display: block;
 
-          transform-origin: left;
+          width: 100%;
+          height: 100%;
 
-          background: #d7b36c;
+          transform-origin:
+            left;
+
+          background:
+            #caa45f;
         }
 
-        .scrollHint small {
-          color: #97958e;
+        .scroll small {
+          color:
+            #8e8a82;
 
-          font-size: 7px;
-          line-height: 1.5;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
+          font-size:
+            7px;
+
+          letter-spacing:
+            0.1em;
+
+          line-height:
+            1.45;
+
+          text-transform:
+            uppercase;
         }
 
-        @media (max-width: 1050px) {
-          .benefit {
-            padding-inline: 16px;
-          }
-
-          .benefit strong {
-            font-size: 10px;
-          }
-        }
-
-        @media (max-width: 760px) {
-          .heroExperience {
-            height: 390vh;
+        @media (
+          max-width:
+          760px
+        ) {
+          .experience {
+            height: 420vh;
           }
 
           .sticky {
-            min-height: 620px;
+            min-height:
+              620px;
           }
 
-          .photo {
-            inset: 0;
-
+          .poster {
             background-position:
-              58% center;
+              62% center;
           }
 
-          .overlay {
+          .shade {
             background:
               linear-gradient(
                 0deg,
                 rgba(
-                    6,
-                    10,
-                    7,
-                    0.97
-                  )
-                  0%,
+                  7,
+                  11,
+                  8,
+                  0.96
+                )
+                0%,
                 rgba(
-                    6,
-                    10,
-                    7,
-                    0.79
-                  )
-                  31%,
+                  7,
+                  11,
+                  8,
+                  0.78
+                )
+                28%,
                 rgba(
-                    6,
-                    10,
-                    7,
-                    0.16
-                  )
-                  67%,
-                rgba(
-                    6,
-                    10,
-                    7,
-                    0.18
-                  )
-                  100%
+                  7,
+                  11,
+                  8,
+                  0.16
+                )
+                63%
               );
           }
 
@@ -771,12 +907,12 @@ export function HeroExperience() {
             right: 22px;
 
             top: auto;
-            bottom: 105px;
+            bottom: 11vh;
 
             width: auto;
 
             transform:
-              translateY(18px);
+              translateY(16px);
           }
 
           .intro.visible {
@@ -784,40 +920,80 @@ export function HeroExperience() {
           }
 
           .eyebrow {
-            margin-bottom: 10px;
-            font-size: 8px;
+            margin-bottom:
+              10px;
+
+            font-size:
+              8px;
           }
 
           h1 {
-            max-width: 380px;
+            max-width:
+              360px;
 
             font-size:
               clamp(
-                43px,
-                12.2vw,
-                62px
+                42px,
+                11.4vw,
+                56px
               );
 
-            line-height: 0.94;
+            line-height:
+              0.94;
           }
 
           .lead {
-            max-width: 340px;
+            max-width:
+              330px;
 
-            margin-top: 15px;
+            margin-top:
+              15px;
 
-            font-size: 13px;
+            font-size:
+              13px;
           }
 
           .actions {
+            margin-top:
+              18px;
+
             gap: 8px;
-            margin-top: 19px;
           }
 
           .actions a {
-            min-height: 46px;
-            padding-inline: 14px;
-            font-size: 11px;
+            min-height:
+              45px;
+
+            padding:
+              0 14px;
+
+            font-size:
+              11px;
+          }
+
+          .story {
+            left: 22px;
+            right: 22px;
+
+            bottom: 82px;
+
+            width: auto;
+
+            padding: 19px;
+          }
+
+          .story h2 {
+            font-size:
+              clamp(
+                27px,
+                8vw,
+                37px
+              );
+          }
+
+          .story p {
+            font-size:
+              11px;
           }
 
           .counter {
@@ -826,85 +1002,43 @@ export function HeroExperience() {
           }
 
           .counter b {
-            font-size: 21px;
+            font-size:
+              21px;
           }
 
-          .benefits {
-            display: none;
-          }
-
-          .scrollHint {
+          .scroll {
             left: 22px;
-            bottom: 23px;
-          }
-
-          .scrollHint > div {
-            gap: 9px;
-          }
-
-          .scrollHint i {
-            width: 38px;
-          }
-
-          .story {
-            left: 22px;
-            right: 22px;
-            bottom: 90px;
-
-            width: auto;
-
-            padding: 20px;
-          }
-
-          .story h2 {
-            font-size: clamp(
-              28px,
-              8vw,
-              38px
-            );
-          }
-
-          .story > p {
-            font-size: 12px;
+            bottom: 20px;
           }
         }
 
-        @media (max-width: 390px) {
-          .intro {
-            bottom: 92px;
-          }
-
+        @media (
+          max-width:
+          390px
+        ) {
           h1 {
-            font-size: 40px;
-          }
-
-          .actions {
-            flex-wrap: wrap;
+            font-size:
+              39px;
           }
 
           .actions a {
             width: 100%;
           }
-
-          .story {
-            bottom: 80px;
-          }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          .heroExperience {
-            height: 170vh;
-          }
-
-          .photo {
-            transform: none !important;
-            transition: none;
+        @media (
+          prefers-reduced-motion:
+          reduce
+        ) {
+          .experience {
+            height:
+              180vh;
           }
 
           .intro,
-          .story,
-          .benefits {
-            transition: none;
+          .story {
+            transition:
+              none;
           }
         }
       `}</style>
