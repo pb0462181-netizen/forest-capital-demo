@@ -269,7 +269,7 @@ export function HeroExperience() {
           will-change: transform;
 
           background-image:
-            url('/forest-hero-house.webp');
+          url('/models/forest-hero-house.webp');
 
           background-repeat: no-repeat;
           background-size: cover;
