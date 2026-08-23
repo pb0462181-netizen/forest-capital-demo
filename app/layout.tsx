@@ -57,7 +57,7 @@ export default function RootLayout({children}:{children:React.ReactNode}){
     {children}
     <AnalyticsBridge/>
     <ConsentAnalytics/>
-    <MotionControls/><DemoBadge/>
+    <MotionControls/>
     <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(schema)}}/>
   </body></html>;
 }
