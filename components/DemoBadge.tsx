@@ -1,3 +1,4 @@
+'use client';
 export function DemoBadge(){
   return <div className="demoBadge">
     <b>DEMO CONCEPT</b>
